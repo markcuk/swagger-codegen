@@ -126,78 +126,94 @@ public class CodeGenMojo extends AbstractMojo {
 
         CodegenConfig config = CodegenConfigLoader.forName(language);
         config.setOutputDir(output.getAbsolutePath());
-
-        if (environmentVariables != null) {
-            for(String key : environmentVariables.keySet()) {
-                String value = environmentVariables.get(key);
-                if(value == null) {
-                    // don't put null values
-                    value = "";
-                }
-                System.setProperty(key, value);
-            }
-        }
-        if (null != library) {
-            config.setLibrary(library);
-        }
-        if (null != templateDirectory) {
-            config.additionalProperties().put(TEMPLATE_DIR_PARAM, templateDirectory.getAbsolutePath());
-        }
-        if (null != modelPackage) {
-            config.additionalProperties().put(MODEL_PACKAGE_PARAM, modelPackage);
-        }
-        if (null != apiPackage) {
-            config.additionalProperties().put(API_PACKAGE_PARAM, apiPackage);
-        }
-        if (null != invokerPackage) {
-            config.additionalProperties().put(INVOKER_PACKAGE_PARAM, invokerPackage);
-        }
-
-        if (configOptions != null) {
-            for (CliOption langCliOption : config.cliOptions()) {
-                if (configOptions.containsKey(langCliOption.getOpt())) {
-                    config.additionalProperties().put(langCliOption.getOpt(),
-                            configOptions.get(langCliOption.getOpt()));
-                }
-            }
-        }
-
-        if (null != configurationFile) {
-            Config genConfig = ConfigParser.read(configurationFile);
-            if (null != genConfig) {
-                for (CliOption langCliOption : config.cliOptions()) {
-                    if (genConfig.hasOption(langCliOption.getOpt())) {
-                        config.additionalProperties().put(langCliOption.getOpt(), genConfig.getOption(langCliOption.getOpt()));
-                    }
-                }
-            } else {
-            	throw new RuntimeException("Unable to read configuration file");
-            }
-        }
         
-        ClientOptInput input = new ClientOptInput().opts(new ClientOpts()).swagger(swagger);
-        input.setConfig(config);
+        Map<String,String> storedEnvironmentVariables = new HashMap<String,String>();
 
-        if(configHelp) {
-            for (CliOption langCliOption : config.cliOptions()) {
-                System.out.println("\t" + langCliOption.getOpt());
-                System.out.println("\t    " + langCliOption.getOptionHelp().replaceAll("\n", "\n\t    "));
-                System.out.println();
-            }
-            return;
-        }
         try {
-            new DefaultGenerator().opts(input).generate();
-        } catch (Exception e) {
-            // Maven logs exceptions thrown by plugins only if invoked with -e
-        	// I find it annoying to jump through hoops to get basic diagnostic information,
-        	// so let's log it in any case:
-            getLog().error(e); 
-            throw new MojoExecutionException("Code generation failed. See above for the full exception.");
-        }
-
-        if (addCompileSourceRoot) {
-            project.addCompileSourceRoot(output.toString());
+        	
+	        if (environmentVariables != null) {
+	            for(String key : environmentVariables.keySet()) {
+	            	storedEnvironmentVariables.put(key, System.getProperty(key));
+	                String value = environmentVariables.get(key);
+	                if(value == null) {
+	                    // don't put null values
+	                    value = "";
+	                }
+	                System.setProperty(key, value);
+	            }
+	        }
+	        if (null != library) {
+	            config.setLibrary(library);
+	        }
+	        if (null != templateDirectory) {
+	            config.additionalProperties().put(TEMPLATE_DIR_PARAM, templateDirectory.getAbsolutePath());
+	        }
+	        if (null != modelPackage) {
+	            config.additionalProperties().put(MODEL_PACKAGE_PARAM, modelPackage);
+	        }
+	        if (null != apiPackage) {
+	            config.additionalProperties().put(API_PACKAGE_PARAM, apiPackage);
+	        }
+	        if (null != invokerPackage) {
+	            config.additionalProperties().put(INVOKER_PACKAGE_PARAM, invokerPackage);
+	        }
+	
+	        if (configOptions != null) {
+	            for (CliOption langCliOption : config.cliOptions()) {
+	                if (configOptions.containsKey(langCliOption.getOpt())) {
+	                    config.additionalProperties().put(langCliOption.getOpt(),
+	                            configOptions.get(langCliOption.getOpt()));
+	                }
+	            }
+	        }
+	
+	        if (null != configurationFile) {
+	            Config genConfig = ConfigParser.read(configurationFile);
+	            if (null != genConfig) {
+	                for (CliOption langCliOption : config.cliOptions()) {
+	                    if (genConfig.hasOption(langCliOption.getOpt())) {
+	                        config.additionalProperties().put(langCliOption.getOpt(), genConfig.getOption(langCliOption.getOpt()));
+	                    }
+	                }
+	            } else {
+	            	throw new RuntimeException("Unable to read configuration file");
+	            }
+	        }
+	        
+	        ClientOptInput input = new ClientOptInput().opts(new ClientOpts()).swagger(swagger);
+	        input.setConfig(config);
+	
+	        if(configHelp) {
+	            for (CliOption langCliOption : config.cliOptions()) {
+	                System.out.println("\t" + langCliOption.getOpt());
+	                System.out.println("\t    " + langCliOption.getOptionHelp().replaceAll("\n", "\n\t    "));
+	                System.out.println();
+	            }
+	            return;
+	        }
+	        try {
+	            new DefaultGenerator().opts(input).generate();
+	        } catch (Exception e) {
+	            // Maven logs exceptions thrown by plugins only if invoked with -e
+	        	// I find it annoying to jump through hoops to get basic diagnostic information,
+	        	// so let's log it in any case:
+	            getLog().error(e); 
+	            throw new MojoExecutionException("Code generation failed. See above for the full exception.");
+	        }
+	
+	        if (addCompileSourceRoot) {
+	            project.addCompileSourceRoot(output.toString());
+	        }
+	        
+        } finally {
+        	for (String key : storedEnvironmentVariables.keySet()) {
+        		String value = storedEnvironmentVariables.get(key);
+        		if (value == null) {
+        			System.clearProperty(key);
+        		} else {
+        			System.setProperty(key, value);
+        		}
+        	}
         }
     }
 }
